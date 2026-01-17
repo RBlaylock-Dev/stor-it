@@ -1,11 +1,10 @@
 import React from 'react'
-import Search from '../../../components/Search';
 import Sort from '@/components/Sort';
 import { getFiles } from '@/lib/actions/file.actions';
 import { Models } from 'node-appwrite';
 import Card from '@/components/Card';
 
-const Page = async ({ params }: SearchParamsProps) => {
+const Page = async ({ params }: SearchParamProps) => {
     const type = (await params)?.type as string || "";
 
     const files = await getFiles();
@@ -23,7 +22,7 @@ const Page = async ({ params }: SearchParamsProps) => {
                 </p>
 
                 <div className="sort-container">
-                    <p className='body-1 hidden sm:block text-light-200'>
+                    <p className='body-1 hidden text-light-200 sm:block'>
                     Sort by:
                     </p>
 
