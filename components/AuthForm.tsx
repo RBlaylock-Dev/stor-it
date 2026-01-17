@@ -16,9 +16,8 @@ import {
 } from "@/components/ui/form"
 import { Input } from "@/components/ui/input"
 import Link from 'next/link';
-import { createAccount } from '@/lib/actions/user.actions';
+import { createAccount, signInUser } from '@/lib/actions/user.actions';
 import OTPModal from './OTPModal';
-import { signInUser } from '../lib/actions/user.actions';
 
 
 
