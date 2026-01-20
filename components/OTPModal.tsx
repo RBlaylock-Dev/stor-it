@@ -42,7 +42,7 @@ const OTPModal = ({ accountId, email}: { accountId: string; email: string }) => 
   };
 
   const handleResendOtp = async () => {
-//Call API to resend OTP
+
     await sendEmailOTP({ email });
   };
 

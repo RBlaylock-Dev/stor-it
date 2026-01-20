@@ -93,4 +93,4 @@ export const ShareInput = ({ file, onInputChange, onRemove }: Props) => {
       </div>
     </>
   );
-};
+  };
