@@ -1,34 +1,34 @@
 "use server";
 
-import { createAdminClient, createSessionClient } from "../appwrite";
+import { createAdminClient, createSessionClient } from "@/lib/appwrite";
 import { InputFile } from "node-appwrite/file";
-import { appwriteConfig } from "../appwrite/config";
-import { ID, Models, Query } from 'node-appwrite';
-import { constructFileUrl, getFileType, parseStringify } from "../utils";
+import { appwriteConfig } from "@/lib/appwrite/config";
+import { ID, Models, Query } from "node-appwrite";
+import { constructFileUrl, getFileType, parseStringify } from "@/lib/utils";
 import { revalidatePath } from "next/cache";
-import { getCurrentUser } from "./user.actions";
-
+import { getCurrentUser } from "@/lib/actions/user.actions";
 
 const handleError = (error: unknown, message: string) => {
   console.log(error, message);
   throw error;
 };
 
-export const uploadFile = async ({
-  file,
-  ownerId,
-  accountId,
-  path,
-}: UploadFileProps) => {
+export const uploadFile = async (formData: FormData) => {
   const { storage, databases } = await createAdminClient();
 
+  const file = formData.get("file") as File;
+  const ownerId = formData.get("ownerId") as string;
+  const accountId = formData.get("accountId") as string;
+  const path = formData.get("path") as string;
+
   try {
-    const inputFile = InputFile.fromBuffer(file, file.name);
+    const bytes = await file.arrayBuffer();
+    const inputFile = InputFile.fromBuffer(Buffer.from(bytes), file.name);
 
     const bucketFile = await storage.createFile(
       appwriteConfig.bucketId,
       ID.unique(),
-      inputFile
+      inputFile,
     );
 
     const fileDocument = {
@@ -43,16 +43,17 @@ export const uploadFile = async ({
       bucketFileId: bucketFile.$id,
     };
 
-    const newFile = await databases.createDocument(
+    const newFile = await databases
+      .createDocument(
         appwriteConfig.databaseId,
         appwriteConfig.filesTableId,
         ID.unique(),
         fileDocument,
-    )
-    .catch(async (error: unknown) => {
+      )
+      .catch(async (error: unknown) => {
         await storage.deleteFile(appwriteConfig.bucketId, bucketFile.$id);
-        handleError(error, "Failed to create a file document");
-    });
+        handleError(error, "Failed to create file document");
+      });
 
     revalidatePath(path);
     return parseStringify(newFile);
@@ -61,13 +62,20 @@ export const uploadFile = async ({
   }
 };
 
-const createQueries = (currentUser: Models.Document, types: string[], searchText: string, sort: string, limit?: number) => {
+const createQueries = (
+  currentUser: Models.Document,
+  types: string[],
+  searchText: string,
+  sort: string,
+  limit?: number,
+) => {
   const queries = [
     Query.or([
-      Query.equal('owner', [currentUser.$id]),
-      Query.contains('users', [currentUser.email])
+      Query.equal("owner", [currentUser.$id]),
+      Query.contains("users", [currentUser.email]),
     ]),
   ];
+
   if (types.length > 0) queries.push(Query.equal("type", types));
   if (searchText) queries.push(Query.contains("name", searchText));
   if (limit) queries.push(Query.limit(limit));
@@ -83,31 +91,40 @@ const createQueries = (currentUser: Models.Document, types: string[], searchText
   return queries;
 };
 
-export const getFiles = async ({types = [], searchText = "", sort = "$createdAt-desc", limit}: GetFilesProps) => {
+export const getFiles = async ({
+  types = [],
+  searchText = "",
+  sort = "$createdAt-desc",
+  limit,
+}: GetFilesProps) => {
   const { databases } = await createAdminClient();
 
   try {
     const currentUser = await getCurrentUser();
 
-    if(!currentUser) throw new Error("User not found");
+    if (!currentUser) throw new Error("User not found");
 
     const queries = createQueries(currentUser, types, searchText, sort, limit);
-
-    console.log({currentUser, queries})
 
     const files = await databases.listDocuments(
       appwriteConfig.databaseId,
       appwriteConfig.filesTableId,
       queries,
     );
-    console.log({files});
+
+    console.log({ files });
     return parseStringify(files);
   } catch (error) {
-    handleError(error, "Failed to get files")
+    handleError(error, "Failed to get files");
   }
 };
 
-export const renameFile = async ({ fileId, name, extension, path }: RenameFileProps) => {
+export const renameFile = async ({
+  fileId,
+  name,
+  extension,
+  path,
+}: RenameFileProps) => {
   const { databases } = await createAdminClient();
 
   try {
@@ -124,7 +141,7 @@ export const renameFile = async ({ fileId, name, extension, path }: RenameFilePr
     revalidatePath(path);
     return parseStringify(updatedFile);
   } catch (error) {
-    handleError(error, "Failed to rename file")
+    handleError(error, "Failed to rename file");
   }
 };
 
@@ -148,7 +165,7 @@ export const updateFileUsers = async ({
     revalidatePath(path);
     return parseStringify(updatedFile);
   } catch (error) {
-    handleError(error, "Failed to send the file");
+    handleError(error, "Failed to rename file");
   }
 };
 
@@ -173,10 +190,11 @@ export const deleteFile = async ({
     revalidatePath(path);
     return parseStringify({ status: "success" });
   } catch (error) {
-    handleError(error, "Failed to delete the file");
+    handleError(error, "Failed to rename file");
   }
 };
 
+// ============================== TOTAL FILE SPACE USED
 export async function getTotalSpaceUsed() {
   try {
     const { databases } = await createSessionClient();
